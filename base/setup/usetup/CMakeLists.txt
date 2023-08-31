@@ -1,8 +1,8 @@
 
-option(DEV_INSTALLATION_FASTFORWARD "Minimize steps/input when repeatedly upgrading ReactOS during development" OFF)
+option(DEV_FFWD_INSTALL "Minimize steps/input when repeatedly upgrading ReactOS during development" OFF)
 
-if (DEV_INSTALLATION_FASTFORWARD)
-    add_definitions(-DDEV_INSTALLATION_FASTFORWARD)
+if (DEV_FFWD_INSTALL)
+    add_definitions(-DDEV_FFWD_INSTALL)
 endif()
 
 add_definitions(${I18N_DEFS})

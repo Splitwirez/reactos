@@ -564,7 +564,7 @@ LanguagePage(PINPUT_RECORD Ir)
     SetConsoleCodePage();
     UpdateKBLayout();
 
-#ifdef DEV_INSTALLATION_FASTFORWARD
+#ifdef DEV_FFWD_INSTALL
     /*** HACK!! ***/
     if (PartitionList == NULL)
     {
@@ -585,7 +585,7 @@ LanguagePage(PINPUT_RECORD Ir)
             return UPGRADE_REPAIR_PAGE;
         }
     }
-#endif /* DEV_INSTALLATION_FASTFORWARD */
+#endif /* DEV_FFWD_INSTALL */
     /*
      * If there is no language or just a single one in the list,
      * skip the language selection process altogether.
@@ -989,7 +989,7 @@ UpgradeRepairPage(PINPUT_RECORD Ir)
                     xScreen - 3,
                     yScreen - 3);
 
-#ifdef DEV_INSTALLATION_FASTFORWARD
+#ifdef DEV_FFWD_INSTALL
     ULONG numberOfInstalls = GetNumberOfListEntries(NtOsInstallsList);
     if (NtOsInstallsList && (numberOfInstalls == 1))
     {
@@ -1003,7 +1003,7 @@ UpgradeRepairPage(PINPUT_RECORD Ir)
 
         return INSTALL_INTRO_PAGE;
     }
-#endif /* DEV_INSTALLATION_FASTFORWARD */
+#endif /* DEV_FFWD_INSTALL */
 
     // return HandleGenericList(&ListUi, DEVICE_SETTINGS_PAGE, Ir);
     while (TRUE)
@@ -3891,10 +3891,10 @@ RegistryPage(PINPUT_RECORD Ir)
     else
     {
         CONSOLE_SetStatusText(MUIGetString(STRING_DONE));
-#ifdef DEV_INSTALLATION_FASTFORWARD
+#ifdef DEV_FFWD_INSTALL
         if (RepairUpdateFlag)
             return FLUSH_PAGE; //return SUCCESS_PAGE;
-#endif /* DEV_INSTALLATION_FASTFORWARD */
+#endif /* DEV_FFWD_INSTALL */
         return BOOT_LOADER_PAGE;
     }
 }

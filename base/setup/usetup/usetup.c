@@ -564,6 +564,28 @@ LanguagePage(PINPUT_RECORD Ir)
     SetConsoleCodePage();
     UpdateKBLayout();
 
+#ifdef DEV_INSTALLATION_FASTFORWARD
+    /*** HACK!! ***/
+    if (PartitionList == NULL)
+    {
+        PartitionList = CreatePartitionList();
+
+        /* Reset the formatter machine state */
+        TempPartition = NULL;
+        FormatState = Start;
+    }
+
+    if ((PartitionList != NULL) && !IsListEmpty(&PartitionList->DiskListHead))
+    {
+        NtOsInstallsList = CreateNTOSInstallationsList(PartitionList);
+        if (NtOsInstallsList && (GetNumberOfListEntries(NtOsInstallsList) == 1))
+        {
+            // Skip the language selection process altogether.
+            USetupData.LanguageId = (LANGID)(wcstol(SelectedLanguageId, NULL, 16) & 0xFFFF);
+            return UPGRADE_REPAIR_PAGE;
+        }
+    }
+#endif /* DEV_INSTALLATION_FASTFORWARD */
     /*
      * If there is no language or just a single one in the list,
      * skip the language selection process altogether.
@@ -966,6 +988,22 @@ UpgradeRepairPage(PINPUT_RECORD Ir)
                     2, 23,
                     xScreen - 3,
                     yScreen - 3);
+
+#ifdef DEV_INSTALLATION_FASTFORWARD
+    ULONG numberOfInstalls = GetNumberOfListEntries(NtOsInstallsList);
+    if (NtOsInstallsList && (numberOfInstalls == 1))
+    {
+        CurrentInstallation =
+            (PNTOS_INSTALLATION)GetListEntryData(GetCurrentListEntry(NtOsInstallsList));
+
+        DPRINT1("Selected installation for repair: \"%S\" ; DiskNumber = %d , PartitionNumber = %d\n",
+                CurrentInstallation->InstallationName, CurrentInstallation->DiskNumber, CurrentInstallation->PartitionNumber);
+
+        RepairUpdateFlag = TRUE;
+
+        return INSTALL_INTRO_PAGE;
+    }
+#endif /* DEV_INSTALLATION_FASTFORWARD */
 
     // return HandleGenericList(&ListUi, DEVICE_SETTINGS_PAGE, Ir);
     while (TRUE)
@@ -3853,6 +3891,10 @@ RegistryPage(PINPUT_RECORD Ir)
     else
     {
         CONSOLE_SetStatusText(MUIGetString(STRING_DONE));
+#ifdef DEV_INSTALLATION_FASTFORWARD
+        if (RepairUpdateFlag)
+            return FLUSH_PAGE; //return SUCCESS_PAGE;
+#endif /* DEV_INSTALLATION_FASTFORWARD */
         return BOOT_LOADER_PAGE;
     }
 }

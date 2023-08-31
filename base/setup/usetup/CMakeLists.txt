@@ -1,4 +1,10 @@
 
+option(DEV_INSTALLATION_FASTFORWARD "Minimize steps/input when repeatedly upgrading ReactOS during development" OFF)
+
+if (DEV_INSTALLATION_FASTFORWARD)
+    add_definitions(-DDEV_INSTALLATION_FASTFORWARD)
+endif()
+
 add_definitions(${I18N_DEFS})
 
 include_directories(

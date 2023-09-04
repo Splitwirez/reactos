@@ -417,6 +417,7 @@ ThemeDrawCaption(PDRAW_CONTEXT pcontext, RECT* prcCurrent)
     }
 
     rcPart.right -= 4;
+    rcPart.bottom += pcontext->wi.cyWindowBorders;
 
     /* Draw the caption */
     ThemeDrawCaptionText(pcontext, &rcPart, iPart, iState);

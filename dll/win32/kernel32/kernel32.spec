@@ -1056,7 +1056,7 @@
 @ stdcall SetPriorityClass(long long)
 @ stdcall SetProcessAffinityMask(long long)
 @ stub -version=0x600+ SetProcessAffinityUpdateMode
-@ stub -version=0x600+ SetProcessDEPPolicy
+@ stdcall -version=0x600+ SetProcessDEPPolicy(long) kernel32_vista.SetProcessDEPPolicy
 @ stdcall SetProcessPriorityBoost(long long)
 @ stdcall SetProcessShutdownParameters(long long)
 @ stdcall SetProcessWorkingSetSize(long long long)

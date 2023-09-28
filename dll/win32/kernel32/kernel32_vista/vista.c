@@ -762,3 +762,26 @@ SetThreadPreferredUILanguages(
     return FALSE;
 }
 
+/**********************************************************************
+ *           SetProcessDEPPolicy     (KERNEL32.@)
+ */
+BOOL WINAPI
+SetProcessDEPPolicy(
+    _In_ DWORD flags
+)
+{
+    ULONG dep_flags = 0;
+
+    //TRACE("%#lx\n", flags);
+
+    if (flags & PROCESS_DEP_ENABLE)
+        dep_flags |= MEM_EXECUTE_OPTION_DISABLE | MEM_EXECUTE_OPTION_PERMANENT;
+    if (flags & PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION)
+        dep_flags |= MEM_EXECUTE_OPTION_DISABLE_THUNK_EMULATION;
+
+    NTSTATUS status = NtSetInformationProcess(GetCurrentProcess(), ProcessExecuteFlags,
+                                            &dep_flags, sizeof(dep_flags));
+    if (status)
+        SetLastError(RtlNtStatusToDosError(status));
+    return !status;
+}

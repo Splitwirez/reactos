@@ -93,6 +93,11 @@ public:
         return (HIMAGELIST)SendMessage(LVM_SETIMAGELIST, iImageList, reinterpret_cast<LPARAM>(himl));
     }
 
+    HIMAGELIST GetImageList()
+    {
+        return (HIMAGELIST)SendMessageW(TB_GETIMAGELIST, 0, 0);
+    }
+
     int InsertItem(const LV_ITEM * pitem)
     {
         return (int)SendMessage(LVM_INSERTITEM, 0, reinterpret_cast<LPARAM>(pitem));

@@ -13,26 +13,33 @@
 
 struct UXDRAWINFO
 {
-    int eBgType;
-    int eSizingType;
-    int eImageLayout;
+    BGTYPE eBgType;
+    SIZINGTYPE eSizingType;
+    IMAGELAYOUT eImageLayout;
+    GLYPHTYPE eGlyphType;
+    HALIGN eGlyphHAlignment;
+    VALIGN eGlyphVAlignment;
     int iImageCount;
 
-    MARGINS marSizing;
-    MARGINS marContent;
-    BOOL    fSizingMargins;
+    MARGINS     marSizing;
+    MARGINS     marContent;
+    BOOL        fSizingMargins;
+    BOOL        fUniformSizing;
+    BOOL        fMirrorImage;
 
-    RECT rcSrc;
+    RECT        rcSrc;
+    RECT        rcGlyphSrc;
 
-    BOOL     fTransparent;
-    COLORREF crTransparent;
+    BOOL        fTransparent;
+    COLORREF    crTransparent;
 
-    int      eBorderType;
-    int      eFillType;
-    int      iBorderSize;
-    COLORREF crBorder;
-    COLORREF crFill;
+    BORDERTYPE  eBorderType;
+    COLORREF    crBorder;
+    int         iBorderSize;
+
+    FILLTYPE    eFillType;
+    COLORREF    crFill;
 };
 
 HRESULT UxResolveDrawInfo(CThemeFile* pFile, int iClass, int iPartId, int iStateId,
-                          UXDRAWINFO* pInfo, CUxImage** ppImage);
+                          UXDRAWINFO* pInfo, CUxImage** ppImage, CUxImage** ppGlyphImage);

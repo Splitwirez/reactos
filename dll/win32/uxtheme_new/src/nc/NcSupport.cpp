@@ -123,7 +123,7 @@ HRESULT UXTHEME_LoadImage(HTHEME hTheme, HDC hdc, int iPartId, int iStateId,
     if (!p || !p->pFile)
         return E_HANDLE;
 
-    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pImage);
+    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pImage, NULL);
     if (FAILED(hr))
         return hr;
     if (!pImage)

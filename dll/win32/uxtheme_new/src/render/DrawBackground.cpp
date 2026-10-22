@@ -49,7 +49,7 @@ public:
     CImageDC() : m_hdc(NULL), m_hbm(NULL), m_hbmOld(NULL) { }
     ~CImageDC() { Free(); }
 
-    HRESULT Create(HDC hdcCompat, const CUxImage* pImage)
+    HRESULT Create(HDC hdcCompat, const CUxImage* pBackground)
     {
         BITMAPINFO bmi;
         void* pvBits = NULL;
@@ -62,8 +62,8 @@ public:
 
         memset(&bmi, 0, sizeof(bmi));
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = pImage->Width();
-        bmi.bmiHeader.biHeight = -pImage->Height();
+        bmi.bmiHeader.biWidth = pBackground->Width();
+        bmi.bmiHeader.biHeight = -pBackground->Height();
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = BI_RGB;
@@ -75,8 +75,8 @@ public:
             return E_OUTOFMEMORY;
         }
 
-        memcpy(pvBits, pImage->Bits(),
-               (SIZE_T)pImage->Height() * (SIZE_T)pImage->Stride());
+        memcpy(pvBits, pBackground->Bits(),
+               (SIZE_T)pBackground->Height() * (SIZE_T)pBackground->Stride());
 
         m_hbmOld = (HBITMAP)SelectObject(m_hdc, m_hbm);
         return S_OK;
@@ -277,17 +277,68 @@ static HRESULT DrawBorderFill(HDC hdc, const RECT* prc, const UXDRAWINFO* pInfo)
     return S_OK;
 }
 
+static void AlignGlyphRectAxis(
+    _In_ int alignment,
+    //_In_ int glyphExtent,
+    _In_ int glyphSrcNear,
+    _In_ int glyphSrcFar,
+    _In_ int boundSrcNear,
+    _In_ int boundSrcFar,
+    _Out_ long int* glyphDstNear,
+    _Out_ long int* glyphDstFar
+)
+{
+    int glyphSrcExtent = glyphSrcFar - glyphSrcNear;
+
+    if (alignment == 0) //HA_LEFT, VA_TOP
+    {
+        *glyphDstNear = boundSrcNear;
+        *glyphDstFar = boundSrcNear + glyphSrcExtent;
+    }
+    else if (alignment == 2) //HA_RIGHT, VA_BOTTOM
+    {
+        *glyphDstNear = boundSrcFar - glyphSrcExtent;
+        *glyphDstFar = boundSrcFar;
+    }
+    else
+    {
+        int boundSrcCenter = boundSrcNear + ((boundSrcFar - boundSrcNear) / 2);
+        int glyphSrcExtentHalfNear = glyphSrcExtent / 2;
+        int glyphSrcExtentHalfFar = glyphSrcExtentHalfNear;
+
+        if ((glyphSrcExtentHalfFar * 2) < glyphSrcExtent)
+            glyphSrcExtentHalfFar = glyphSrcExtentHalfFar + 1;
+
+        *glyphDstNear = boundSrcCenter - glyphSrcExtentHalfFar;
+        *glyphDstFar = boundSrcCenter + glyphSrcExtentHalfFar;
+    }
+}
+
+
 extern "C" {
 
-HRESULT WINAPI DrawThemeBackground(HTHEME hTheme, HDC hdc, int iPartId, int iStateId,
-                                   const RECT* pRect, const RECT* pClipRect)
+HRESULT WINAPI DrawThemeBackgroundEx(HTHEME hTheme, HDC hdc, int iPartId, int iStateId,
+                                     const RECT* pRect, const DTBGOPTS* pOptions)
 {
+    const DTBGOPTS defaultOpts = {sizeof(DTBGOPTS), 0, {0,0,0,0}};
+    const DTBGOPTS opts = pOptions != nullptr
+        ? *pOptions
+        : defaultOpts
+    ;
+
+    if (opts.dwFlags & ~(DWORD)DTBG_CLIPRECT)
+        UXGAP("DTBG_* flags other than CLIPRECT are ignored");
+
     THEMEHANDLE* p;
     UXDRAWINFO info;
-    CUxImage* pImage = NULL;
+    CUxImage* pBackground = NULL;
+    CUxImage* pGlyph = NULL;
     CImageDC srcDC;
+    CImageDC srcGlyphDC;
     HRESULT hr;
     int iSaved = 0;
+
+    RECT glyphRect = { 0, 0, 0, 0 };
 
     if (!pRect)
         return E_POINTER;
@@ -296,52 +347,50 @@ HRESULT WINAPI DrawThemeBackground(HTHEME hTheme, HDC hdc, int iPartId, int iSta
     if (!p || !p->pFile)
         return E_HANDLE;
 
-    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pImage);
+    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pBackground, &pGlyph);
 
+    static LONG s_cDraws = 0;
+    LONG n = InterlockedIncrement(&s_cDraws);
+
+    if (n <= 300)
     {
-        static LONG s_cDraws = 0;
-        LONG n = InterlockedIncrement(&s_cDraws);
+        const WCHAR* pszClass = L"?";
+        if (p->iClass >= 0 && p->iClass < p->pFile->classes.GetCount())
+            pszClass = p->pFile->classes[p->iClass].strFullName.Get();
 
-        if (n <= 300)
-        {
-            const WCHAR* pszClass = L"?";
-            if (p->iClass >= 0 && p->iClass < p->pFile->classes.GetCount())
-                pszClass = p->pFile->classes[p->iClass].strFullName.Get();
-
-            UxTrace("uxtheme_new: draw %-28ls part %-3d state %-3d "
-                    "dst %ld,%ld %ldx%ld  src %ld,%ld %ldx%ld  res %u  "
-                    "bg %d cnt %d lay %d  mar %d,%d,%d,%d%s\n",
-                    pszClass, iPartId, iStateId,
-                    pRect->left, pRect->top,
-                    pRect->right - pRect->left, pRect->bottom - pRect->top,
-                    info.rcSrc.left, info.rcSrc.top,
-                    info.rcSrc.right - info.rcSrc.left,
-                    info.rcSrc.bottom - info.rcSrc.top,
-                    pImage ? 1u : 0u,
-                    info.eBgType, info.iImageCount, info.eImageLayout,
-                    info.marSizing.cxLeftWidth, info.marSizing.cxRightWidth,
-                    info.marSizing.cyTopHeight, info.marSizing.cyBottomHeight,
-                    FAILED(hr) ? "  <- RESOLVE FAILED" : "");
-        }
+        UxTrace("uxtheme_new: draw %-28ls part %-3d state %-3d "
+                "dst %ld,%ld %ldx%ld  src %ld,%ld %ldx%ld  res %u  "
+                "bg %d cnt %d lay %d  mar %d,%d,%d,%d%s\n",
+                pszClass, iPartId, iStateId,
+                pRect->left, pRect->top,
+                pRect->right - pRect->left, pRect->bottom - pRect->top,
+                info.rcSrc.left, info.rcSrc.top,
+                info.rcSrc.right - info.rcSrc.left,
+                info.rcSrc.bottom - info.rcSrc.top,
+                pBackground ? 1u : 0u,
+                info.eBgType, info.iImageCount, info.eImageLayout,
+                info.marSizing.cxLeftWidth, info.marSizing.cxRightWidth,
+                info.marSizing.cyTopHeight, info.marSizing.cyBottomHeight,
+                FAILED(hr) ? "  <- RESOLVE FAILED" : "");
     }
 
     if (FAILED(hr))
         return hr;
 
-    if (pClipRect)
+    if (opts.dwFlags & DTBG_CLIPRECT)
     {
         iSaved = SaveDC(hdc);
-        IntersectClipRect(hdc, pClipRect->left, pClipRect->top,
-                          pClipRect->right, pClipRect->bottom);
+        IntersectClipRect(hdc, opts.rcClip.left, opts.rcClip.top,
+                          opts.rcClip.right, opts.rcClip.bottom);
     }
 
-    if (info.eBgType != BT_IMAGEFILE || !pImage)
+    if (info.eBgType != BT_IMAGEFILE || !pBackground)
     {
         hr = DrawBorderFill(hdc, pRect, &info);
     }
     else
     {
-        hr = srcDC.Create(hdc, pImage);
+        hr = srcDC.Create(hdc, pBackground);
         if (SUCCEEDED(hr))
         {
             if (info.fSizingMargins)
@@ -360,24 +409,72 @@ HRESULT WINAPI DrawThemeBackground(HTHEME hTheme, HDC hdc, int iPartId, int iSta
         }
     }
 
+    if (pGlyph)
+    {
+        switch (info.eGlyphType)
+        {
+            case GT_IMAGEGLYPH:
+                if (pGlyph == NULL)
+                    break;
+
+                AlignGlyphRectAxis((int)info.eGlyphHAlignment,
+                    info.rcGlyphSrc.left,
+                    info.rcGlyphSrc.right,
+
+                    pRect->left,
+                    pRect->right,
+
+                    &glyphRect.left,
+                    &glyphRect.right
+                );
+
+                AlignGlyphRectAxis((int)info.eGlyphVAlignment,
+                    info.rcGlyphSrc.top,
+                    info.rcGlyphSrc.bottom,
+
+                    pRect->top,
+                    pRect->bottom,
+
+                    &glyphRect.top,
+                    &glyphRect.bottom
+                );
+                
+
+                hr = srcGlyphDC.Create(hdc, pGlyph);
+                if (SUCCEEDED(hr))
+                {
+                    if (!BlendCell(hdc, &glyphRect, srcGlyphDC.Get(), &info.rcGlyphSrc))
+                        hr = E_FAIL;
+                }
+
+                break;
+
+            case GT_FONTGLYPH:
+                UXGAP("GT_FONTGLYPH unimplemented");
+                break;
+
+            default:
+                break;
+        }
+    }
+
     if (iSaved)
         RestoreDC(hdc, iSaved);
 
     return hr;
 }
-
-HRESULT WINAPI DrawThemeBackgroundEx(HTHEME hTheme, HDC hdc, int iPartId, int iStateId,
-                                     const RECT* pRect, const DTBGOPTS* pOptions)
+HRESULT WINAPI DrawThemeBackground(HTHEME hTheme, HDC hdc, int iPartId, int iStateId,
+                                   const RECT* pRect, const RECT* pClipRect)
 {
-    const RECT* pClip = NULL;
-
-    if (pOptions && (pOptions->dwFlags & DTBG_CLIPRECT))
-        pClip = &pOptions->rcClip;
-
-    if (pOptions && (pOptions->dwFlags & ~(DWORD)DTBG_CLIPRECT))
-        UXGAP("DTBG_* flags other than CLIPRECT are ignored");
-
-    return DrawThemeBackground(hTheme, hdc, iPartId, iStateId, pRect, pClip);
+    DTBGOPTS opts;
+    opts.dwSize = sizeof(DTBGOPTS);
+    opts.dwFlags = 0;
+    if (pClipRect)
+    {
+        opts.dwFlags |= DTBG_CLIPRECT;
+        opts.rcClip = *pClipRect;
+    }
+    return DrawThemeBackgroundEx(hTheme, hdc, iPartId, iStateId, pRect, &opts);
 }
 
 extern "C"
@@ -387,7 +484,7 @@ HRESULT WINAPI GetThemeBackgroundRegion(HTHEME hTheme, HDC hdc, int iPartId,
 {
     THEMEHANDLE* p;
     UXDRAWINFO info;
-    CUxImage* pImage = NULL;
+    CUxImage* pBackground = NULL;
     HRESULT hr;
     int cx, cy;
 
@@ -405,9 +502,9 @@ HRESULT WINAPI GetThemeBackgroundRegion(HTHEME hTheme, HDC hdc, int iPartId,
     if (cx <= 0 || cy <= 0)
         return E_INVALIDARG;
 
-    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pImage);
+    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pBackground, NULL);
 
-    if (FAILED(hr) || !pImage || info.eBgType != BT_IMAGEFILE)
+    if (FAILED(hr) || !pBackground || info.eBgType != BT_IMAGEFILE)
     {
         *pRegion = CreateRectRgnIndirect(pRect);
         return *pRegion ? S_OK : E_OUTOFMEMORY;
@@ -532,7 +629,7 @@ HRESULT WINAPI GetThemePartSize(HTHEME hTheme, HDC hdc, int iPartId, int iStateI
 {
     THEMEHANDLE* p;
     UXDRAWINFO info;
-    CUxImage* pImage = NULL;
+    CUxImage* pBackground = NULL;
     HRESULT hr;
 
     (void)hdc;
@@ -544,7 +641,7 @@ HRESULT WINAPI GetThemePartSize(HTHEME hTheme, HDC hdc, int iPartId, int iStateI
     if (!p || !p->pFile)
         return E_HANDLE;
 
-    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pImage);
+    hr = UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pBackground, NULL);
     if (FAILED(hr))
         return hr;
 
@@ -561,7 +658,7 @@ HRESULT WINAPI GetThemePartSize(HTHEME hTheme, HDC hdc, int iPartId, int iStateI
         }
     }
 
-    if (!pImage)
+    if (!pBackground)
     {
         if (prc)
         {

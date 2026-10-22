@@ -738,14 +738,37 @@ HRESULT WINAPI GetThemeBackgroundExtent(HTHEME hTheme, HDC hdc, int iPartId,
 
 BOOL WINAPI IsThemeBackgroundPartiallyTransparent(HTHEME hTheme, int iPartId, int iStateId)
 {
+    UXDRAWINFO info;
+    CUxImage* pBackground = NULL;
     THEMEHANDLE* p = ValidateThemeHandle(hTheme);
-    const CThemeProperty* pProp;
-
     if (!p || !p->pFile)
         return FALSE;
 
-    pProp = p->pFile->ResolveProperty(p->iClass, iPartId, iStateId, TMT_TRANSPARENT);
-    return pProp ? pProp->value.GetBool() : FALSE;
+    if (FAILED(UxResolveDrawInfo(p->pFile, p->iClass, iPartId, iStateId, &info, &pBackground, NULL)))
+        return FALSE;
+
+    switch (info.eBgType)
+    {
+        case BT_NONE:
+            return TRUE;
+
+        case BT_IMAGEFILE:
+            if (info.fTransparent)
+                return TRUE;
+            else if (!pBackground)
+                return FALSE;
+
+            /*//[TODO:
+                - Check for (alpha < 255)
+                - Compare (r, g, b) against TRANSPARENTCOLOR
+            ]*/
+            UXGAP("IMAGEFILE transparency examination NYI. Returning TRUE and hoping for the best...");
+            return TRUE;
+
+        case BT_BORDERFILL:
+        default:
+            return FALSE;
+    }
 }
 
 }

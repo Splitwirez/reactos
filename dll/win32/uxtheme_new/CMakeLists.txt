@@ -33,7 +33,7 @@ list(APPEND SOURCE
     src/api/OpenThemeData.cpp
     src/api/Property.cpp
     src/api/WindowTheme.cpp
-    src/api/Enum.cpp
+    src/api/CurrentVisualStyle.cpp
     src/api/Stream.cpp
     src/api/Stubs.cpp)
 

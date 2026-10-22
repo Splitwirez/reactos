@@ -11,6 +11,29 @@
 
 #include <uxundoc.h>
 
+
+static BOOL CALLBACK UXTHEME_send_theme_changed (HWND hWnd, LPARAM enable)
+{
+    SendMessageW(hWnd, WM_THEMECHANGED, enable, 0);
+    return TRUE;
+}
+
+/* Broadcast WM_THEMECHANGED to *all* windows, including children */
+BOOL CALLBACK UXTHEME_broadcast_theme_changed (HWND hWnd, LPARAM enable)
+{
+    if (hWnd == NULL)
+    {
+        EnumWindows (UXTHEME_broadcast_theme_changed, enable);
+    }
+    else
+    {
+        UXTHEME_send_theme_changed(hWnd, enable);
+        EnumChildWindows (hWnd, UXTHEME_send_theme_changed, enable);
+    }
+    return TRUE;
+}
+
+
 void ReleaseProcessThemeFile(void);
 
 static void GetVariantNames(CThemeFile* pFile, const WCHAR* pszPrefix,
@@ -257,8 +280,7 @@ HRESULT WINAPI ApplyTheme(HTHEMEFILE hThemeFile, UINT Flags, HWND hWnd)
 
     ReleaseProcessThemeFile();
 
-    SendNotifyMessageW(HWND_BROADCAST, WM_THEMECHANGED, 0, 0);
-    SendNotifyMessageW(HWND_BROADCAST, WM_SYSCOLORCHANGE, 0, 0);
+    UXTHEME_broadcast_theme_changed(NULL, !!pFile);
 
     UXTRACE(("uxtheme_new: ApplyTheme -> '%ls' (%ls/%ls)\n",
              pFile ? pFile->strPath.Get() : L"<classic>",

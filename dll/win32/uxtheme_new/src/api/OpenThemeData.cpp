@@ -306,7 +306,13 @@ BOOL WINAPI IsThemeActive(void)
 
 BOOL WINAPI IsAppThemed(void)
 {
-    return IsThemeActive();
+    //return IsThemeActive();
+    BOOL fActive = FALSE;
+    WCHAR szDll[MAX_PATH];
+    GetCurrentThemeSettings(&fActive, szDll, ARRAYSIZE(szDll),
+                                       NULL, 0, NULL, 0);
+
+    return fActive;
 }
 
 BOOL WINAPI IsCompositionActive(void)
@@ -317,7 +323,10 @@ BOOL WINAPI IsCompositionActive(void)
 HTHEME WINAPI GetWindowTheme(HWND hwnd)
 {
     if (!atWindowTheme)
+    {
+		SetLastError(E_HANDLE);
         return NULL;
+    }
 
     return (HTHEME)GetPropW(hwnd, (LPCWSTR)MAKEINTATOM(atWindowTheme));
 }

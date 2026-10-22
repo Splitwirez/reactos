@@ -85,7 +85,7 @@ private:
             return E_OUTOFMEMORY;
         if (m_p)
         {
-            memcpy(pNew, m_p, (SIZE_T)m_c * sizeof(T));
+            memcpy((void*)pNew, (void*)m_p, (SIZE_T)m_c * sizeof(T));
             ThemeHeapFree(m_p);
         }
         m_p = pNew;

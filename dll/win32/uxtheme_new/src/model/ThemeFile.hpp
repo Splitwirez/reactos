@@ -96,7 +96,12 @@ public:
 
 class CThemeFile
 {
+private:
+    LONG m_cRef;
+
 public:
+    int nVersion;
+
     CThemeFile() : m_cRef(1), nVersion(0) { }
 
     LONG AddRef() { return InterlockedIncrement(&m_cRef); }
@@ -120,8 +125,6 @@ public:
     const CThemeProperty* ResolveProperty(int iClass, int iPartId, int iStateId,
                                           int lSymbolVal) const;
 
-    int nVersion;
-
     CPeModule style;
     CPeModule mui;
 
@@ -142,6 +145,4 @@ public:
 private:
     CThemeFile(const CThemeFile&);
     CThemeFile& operator=(const CThemeFile&);
-
-    LONG m_cRef;
 };

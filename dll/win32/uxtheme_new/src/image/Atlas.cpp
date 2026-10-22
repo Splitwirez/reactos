@@ -39,7 +39,7 @@ static CUxImage* LoadPartImage(CThemeFile* pFile, int iClass, int iPartId)
     };
     int i;
 
-    for (i = 0; i < ARRAYSIZE(rgSyms); i++)
+    for (i = 0; i < (int)ARRAYSIZE(rgSyms); i++)
     {
         const CThemeProperty* p =
             pFile->ResolveProperty(iClass, iPartId, 0, rgSyms[i]);

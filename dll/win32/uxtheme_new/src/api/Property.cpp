@@ -316,7 +316,7 @@ HRESULT WINAPI GetThemeDocumentationProperty(LPCWSTR pszThemeName,
     if (!pszValueBuff || cchMaxValChars <= 0)
         return E_INVALIDARG;
 
-    for (i = 0; i < ARRAYSIZE(rgNames); i++)
+    for (i = 0; i < (int)ARRAYSIZE(rgNames); i++)
         if (_wcsicmp(pszPropertyName, rgNames[i].psz) == 0)
             sym = rgNames[i].sym;
 

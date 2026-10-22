@@ -208,7 +208,7 @@ static HTHEME OpenThemeDataInternal(HWND hwnd, LPCWSTR pszClassList)
         const WCHAR* pszEnd = wcschr(psz, L';');
         int cch = pszEnd ? (int)(pszEnd - psz) : (int)wcslen(psz);
 
-        if (cch > 0 && cch < ARRAYSIZE(szClass))
+        if (cch > 0 && cch < (int)ARRAYSIZE(szClass))
         {
             memcpy(szClass, psz, (SIZE_T)cch * sizeof(WCHAR));
             szClass[cch] = L'\0';
